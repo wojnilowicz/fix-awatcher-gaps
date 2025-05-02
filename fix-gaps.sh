@@ -132,7 +132,7 @@ function load_events_from_db() {
   local input_end_period_constraint=$4
   local input_middle_period_constraint=$5
   mapfile -t events < <(
-    sqlite3 sqlite.db <<EOF
+    sqlite3 "$db_filename" <<EOF
 SELECT starttime, endtime, id FROM events
 WHERE bucketrow == $bucket_id $input_start_period_constraint $input_end_period_constraint $input_middle_period_constraint;
 EOF
@@ -309,7 +309,7 @@ fi
 
 input_middle_period_constraint=
 if [[ -v input_start_period && -v input_end_period ]]; then
-  input_middle_period_constraint="AND (endtime >= $input_end_period AND starttime <= $input_start_period)"
+  input_middle_period_constraint="OR (endtime >= $input_end_period AND starttime <= $input_start_period)"
 fi
 
 load_events_from_db window_events \
@@ -317,6 +317,7 @@ load_events_from_db window_events \
   "$input_start_period_constraint" \
   "$input_end_period_constraint" \
   "$input_middle_period_constraint"
+
 if [[ "${#window_events[@]}" -eq 0 || -z "${window_events[0]}" ]]; then
   echo "No window events in given time range."
   exit 1
@@ -414,7 +415,7 @@ for i in "${!afk_events[@]}"; do
       number_of_updated_window_events+=1
       declare -i event_id
       get_id event_id "${window_events[$j]}"
-      sqlite3 sqlite.db <<-EOF
+      sqlite3 "$db_filename" <<-EOF
                            UPDATE events
                            SET starttime = $window_starttime,
                                endtime = $window_endtime
